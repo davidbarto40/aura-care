@@ -10,6 +10,7 @@ Servidor web FastAPI.
 
 import asyncio
 import json
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
@@ -17,8 +18,16 @@ from fastapi.staticfiles import StaticFiles
 
 import state as st
 
+# Rutas absolutas relativas a este fichero → funciona desde cualquier directorio
+BASE_DIR     = Path(__file__).parent           # .../aura-care/server/
+TEMPLATE_DIR = BASE_DIR.parent / "templates"  # .../aura-care/templates/
+STATIC_DIR   = BASE_DIR.parent / "static"     # .../aura-care/static/
+
+# Crear static/ si no existe (Git no sube carpetas vacías)
+STATIC_DIR.mkdir(exist_ok=True)
+
 app = FastAPI(title="Aura-Care Dashboard")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 @app.get("/api/state")
@@ -55,5 +64,5 @@ async def api_stream():
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
-    with open("templates/dashboard.html", encoding="utf-8") as f:
-        return f.read()
+    html_path = TEMPLATE_DIR / "dashboard.html"
+    return html_path.read_text(encoding="utf-8")
