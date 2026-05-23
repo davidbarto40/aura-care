@@ -1,0 +1,20 @@
+# Credenciales — NUNCA subir a GitHub
+.env
+
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.DS_Store
+
+# ESP-IDF build artifacts
+firmware/build/
+firmware/sdkconfig
+firmware/sdkconfig.old
+firmware/dependencies.lock
+firmware/managed_components/

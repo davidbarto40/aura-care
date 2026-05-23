@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aura-Care · Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg:        #080c10;
+    --surface:   #0d1117;
+    --border:    #1e2733;
+    --border2:   #2a3545;
+    --text:      #c9d1d9;
+    --muted:     #4a5568;
+    --accent:    #00d4ff;
+    --green:     #3fb950;
+    --yellow:    #d29922;
+    --orange:    #ff922b;
+    --red:       #f85149;
+    --mono:      'JetBrains Mono', monospace;
+    --sans:      'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+  }
+  .logo-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.4; transform: scale(0.8); }
+  }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .clock {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* ── State badge ── */
+  #state-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding: 5px 14px;
+    border-radius: 4px;
+    border: 1px solid;
+    transition: all 0.4s ease;
+  }
+
+  /* ── Layout ── */
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    grid-template-rows: auto auto 1fr;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .panel {
+    background: var(--surface);
+    padding: 20px 24px;
+  }
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── Boards grid ── */
+  .boards-panel {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .boards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+  }
+  .board-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    transition: border-color 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .board-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+  .board-card.status-empty::before   { background: var(--muted); }
+  .board-card.status-activity::before { background: var(--yellow); }
+  .board-card.status-motion::before  { background: var(--orange); }
+  .board-card.status-impact::before  {
+    background: var(--red);
+    box-shadow: 0 0 12px var(--red);
+  }
+
+  .board-zone {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+  .board-ip {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .board-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 3px;
+  }
+  .board-label { font-size: 11px; color: var(--muted); }
+  .board-value {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .board-status {
+    display: inline-block;
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 2px 8px;
+    border-radius: 3px;
+  }
+  .status-empty    .board-status { background: #1a2030; color: var(--muted); }
+  .status-activity .board-status { background: #2a2010; color: var(--yellow); }
+  .status-motion   .board-status { background: #2a1a08; color: var(--orange); }
+  .status-impact   .board-status { background: #2a0808; color: var(--red); }
+
+  /* ── Variance chart ── */
+  .chart-panel {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .chart-wrap {
+    position: relative;
+    height: 180px;
+  }
+
+  /* ── Zone map ── */
+  .zone-panel {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .zone-map {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .zone-cell {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 12px;
+    text-align: center;
+    position: relative;
+    transition: all 0.3s;
+    background: var(--bg);
+  }
+  .zone-cell.active-empty    { border-color: var(--border2); }
+  .zone-cell.active-activity { border-color: var(--yellow); background: #1a1500; }
+  .zone-cell.active-motion   { border-color: var(--orange); background: #1a1000; }
+  .zone-cell.active-impact   {
+    border-color: var(--red);
+    background: #1a0000;
+    box-shadow: 0 0 16px rgba(248,81,73,0.15);
+  }
+  .zone-cell.offline { opacity: 0.3; }
+
+  .zone-icon { font-size: 22px; margin-bottom: 6px; }
+  .zone-name { font-size: 11px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+  .zone-var  { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+
+  /* ── Alert history ── */
+  .alerts-panel {
+    grid-column: 1 / 3;
+    grid-row: 3;
+  }
+  .alerts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 280px;
+    overflow-y: auto;
+  }
+  .alerts-list::-webkit-scrollbar { width: 4px; }
+  .alerts-list::-webkit-scrollbar-track { background: var(--bg); }
+  .alerts-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .alert-row {
+    display: grid;
+    grid-template-columns: 140px 1fr auto;
+    align-items: center;
+    gap: 16px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 16px;
+    border-left: 3px solid;
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .alert-row.confirmed { border-left-color: var(--red); }
+  .alert-row.false     { border-left-color: var(--green); }
+  .alert-row.resolved  { opacity: 0.5; }
+
+  .alert-time { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .alert-info { font-size: 12px; color: var(--text); }
+  .alert-info strong { color: var(--red); }
+  .alert-zones { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .btn-resolve {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 4px 10px;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .btn-resolve:hover { border-color: var(--green); color: var(--green); }
+
+  .empty-state {
+    text-align: center;
+    padding: 32px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  /* ── ALERTA modal overlay ── */
+  #alert-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(8,12,16,0.85);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  #alert-overlay.visible { display: flex; }
+  .alert-modal {
+    background: var(--surface);
+    border: 2px solid var(--red);
+    border-radius: 10px;
+    padding: 36px 40px;
+    max-width: 440px;
+    text-align: center;
+    box-shadow: 0 0 60px rgba(248,81,73,0.25);
+    animation: modalIn 0.3s ease;
+  }
+  @keyframes modalIn {
+    from { transform: scale(0.9); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  .alert-modal h2 {
+    font-family: var(--mono);
+    font-size: 20px;
+    color: var(--red);
+    margin-bottom: 8px;
+    letter-spacing: 0.05em;
+  }
+  .alert-modal p { font-size: 14px; color: var(--text); line-height: 1.6; margin-bottom: 6px; }
+  .alert-modal .zones-detail {
+    background: var(--bg);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--orange);
+    text-align: left;
+  }
+  .btn-dismiss {
+    margin-top: 8px;
+    padding: 10px 28px;
+    background: var(--red);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .btn-dismiss:hover { opacity: 0.8; }
+
+  /* ── Threshold legend ── */
+  .legend {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .legend-line {
+    width: 20px;
+    height: 2px;
+    border-radius: 1px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────── -->
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    AURA-CARE
+  </div>
+  <div class="header-right">
+    <span class="clock" id="clock">--:--:--</span>
+    <div id="state-badge">IDLE</div>
+  </div>
+</header>
+
+<!-- ── Main grid ──────────────────────────────────────────── -->
+<main>
+
+  <!-- Placas -->
+  <div class="panel boards-panel">
+    <div class="panel-title">Estado de Placas ESP32-S3</div>
+    <div class="boards-grid" id="boards-grid">
+      <div class="empty-state">Esperando placas…</div>
+    </div>
+  </div>
+
+  <!-- Gráfico varianza -->
+  <div class="panel chart-panel">
+    <div class="panel-title">Varianza en Tiempo Real (últimas 60 muestras)</div>
+    <div class="legend" id="chart-legend"></div>
+    <div class="chart-wrap">
+      <canvas id="variance-chart"></canvas>
+    </div>
+  </div>
+
+  <!-- Mapa de zonas -->
+  <div class="panel zone-panel">
+    <div class="panel-title">Mapa de Zonas</div>
+    <div class="zone-map" id="zone-map">
+      <div class="empty-state" style="grid-column:1/-1">Sin placas registradas</div>
+    </div>
+  </div>
+
+  <!-- Historial de alertas -->
+  <div class="panel alerts-panel">
+    <div class="panel-title">Historial de Alertas</div>
+    <div class="alerts-list" id="alerts-list">
+      <div class="empty-state">Sin alertas registradas en esta sesión</div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── Alert overlay ──────────────────────────────────────── -->
+<div id="alert-overlay">
+  <div class="alert-modal">
+    <h2>🚨 ALERTA DE CAÍDA</h2>
+    <p id="modal-time"></p>
+    <p id="modal-still"></p>
+    <div class="zones-detail" id="modal-zones"></div>
+    <p style="font-size:12px;color:var(--muted)">Notificación enviada por Telegram</p>
+    <button class="btn-dismiss" onclick="dismissAlert()">CONFIRMAR RECEPCIÓN</button>
+  </div>
+</div>
+
+<script>
+// ── Constantes ──────────────────────────────────────────────────────────────
+const COLORS = ['#00d4ff','#ff6b6b','#51cf66','#ffd43b','#cc5de8'];
+const ZONE_ICONS = ['🛋️','🛏️','🚿','🍳','🚪'];
+
+const ZONE_STATUS_CLASS = {
+  empty:    'active-empty',
+  activity: 'active-activity',
+  motion:   'active-motion',
+  impact:   'active-impact',
+};
+
+// ── Reloj ───────────────────────────────────────────────────────────────────
+function updateClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('es-ES');
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Chart.js ────────────────────────────────────────────────────────────────
+const ctx   = document.getElementById('variance-chart').getContext('2d');
+let chart   = null;
+let thresholds = { empty: 0.02, motion: 1.5, impact: 8.0 };
+
+function initChart(boards) {
+  if (chart) chart.destroy();
+
+  const datasets = boards.map((b, i) => ({
+    label:       b.zone,
+    data:        b.var_history,
+    borderColor: COLORS[i % COLORS.length],
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    pointRadius: 0,
+    tension:     0.3,
+  }));
+
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 0 },
+      scales: {
+        x: { display: false },
+        y: {
+          grid:   { color: '#1e2733' },
+          ticks:  { color: '#4a5568', font: { family: 'JetBrains Mono', size: 10 } },
+          min: 0,
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        annotation: {},
+      },
+    },
+  });
+}
+
+function updateChart(boards) {
+  if (!chart || chart.data.datasets.length !== boards.length) {
+    initChart(boards);
+    return;
+  }
+  boards.forEach((b, i) => {
+    chart.data.datasets[i].data = b.var_history;
+  });
+  chart.update('none');
+}
+
+// ── Legend ──────────────────────────────────────────────────────────────────
+function renderLegend(boards) {
+  const el = document.getElementById('chart-legend');
+  const items = [
+    ...boards.map((b, i) => `
+      <div class="legend-item">
+        <div class="legend-line" style="background:${COLORS[i % COLORS.length]}"></div>
+        ${b.zone}
+      </div>`),
+    `<div class="legend-item">
+      <div class="legend-line" style="background:#d29922;border-top:1px dashed #d29922"></div>
+      Actividad
+    </div>`,
+    `<div class="legend-item">
+      <div class="legend-line" style="background:#f85149"></div>
+      Impacto
+    </div>`,
+  ];
+  el.innerHTML = items.join('');
+}
+
+// ── State badge ──────────────────────────────────────────────────────────────
+const STATE_STYLES = {
+  'IDLE':                        { bg: '#1a2030', border: '#2a3545', color: '#4a5568' },
+  'IMPACTO_DETECTADO':           { bg: '#2a2000', border: '#d29922', color: '#d29922' },
+  'MONITORIZANDO_INMOVILIDAD':   { bg: '#2a1500', border: '#ff922b', color: '#ff922b' },
+  '🚨 ALERTA_CAIDA':             { bg: '#2a0000', border: '#f85149', color: '#f85149' },
+  '✅ FALSA_ALARMA':             { bg: '#002a10', border: '#3fb950', color: '#3fb950' },
+};
+
+function updateBadge(state) {
+  const badge = document.getElementById('state-badge');
+  const s = STATE_STYLES[state] || STATE_STYLES['IDLE'];
+  badge.textContent = state;
+  badge.style.background   = s.bg;
+  badge.style.borderColor  = s.border;
+  badge.style.color        = s.color;
+  if (state === '🚨 ALERTA_CAIDA') {
+    badge.style.boxShadow = `0 0 12px ${s.border}`;
+  } else {
+    badge.style.boxShadow = 'none';
+  }
+}
+
+// ── Boards grid ─────────────────────────────────────────────────────────────
+function renderBoards(boards) {
+  const grid = document.getElementById('boards-grid');
+  if (!boards.length) {
+    grid.innerHTML = '<div class="empty-state">Esperando placas…</div>';
+    return;
+  }
+
+  const STATUS_LABEL = {
+    empty:    'VACÍO / INMÓVIL',
+    activity: 'ACTIVIDAD',
+    motion:   'MOVIMIENTO',
+    impact:   '⚡ IMPACTO',
+  };
+
+  grid.innerHTML = boards.map((b, i) => `
+    <div class="board-card status-${b.status}" style="--accent:${COLORS[i % COLORS.length]}">
+      <div class="board-zone">${b.zone}</div>
+      <div class="board-ip">${b.ip}</div>
+      <div class="board-metric">
+        <span class="board-label">PPS</span>
+        <span class="board-value">${b.pps.toFixed(1)}</span>
+      </div>
+      <div class="board-metric">
+        <span class="board-label">Varianza</span>
+        <span class="board-value">${b.variance.toFixed(4)}</span>
+      </div>
+      <span class="board-status">${STATUS_LABEL[b.status] || b.status}</span>
+    </div>
+  `).join('');
+}
+
+// ── Zone map ─────────────────────────────────────────────────────────────────
+function renderZoneMap(boards) {
+  const map = document.getElementById('zone-map');
+  if (!boards.length) {
+    map.innerHTML = '<div class="empty-state" style="grid-column:1/-1">Sin placas registradas</div>';
+    return;
+  }
+  map.innerHTML = boards.map((b, i) => `
+    <div class="zone-cell ${ZONE_STATUS_CLASS[b.status] || ''}">
+      <div class="zone-icon">${ZONE_ICONS[i % ZONE_ICONS.length]}</div>
+      <div class="zone-name">${b.zone}</div>
+      <div class="zone-var">var ${b.variance.toFixed(3)}</div>
+    </div>
+  `).join('');
+}
+
+// ── Alerts list ──────────────────────────────────────────────────────────────
+let renderedAlertCount = 0;
+
+function renderAlerts(alerts) {
+  const list = document.getElementById('alerts-list');
+  if (!alerts.length) {
+    list.innerHTML = '<div class="empty-state">Sin alertas registradas en esta sesión</div>';
+    renderedAlertCount = 0;
+    return;
+  }
+
+  // Solo re-renderizar si cambia el número (evitar flicker)
+  if (alerts.length === renderedAlertCount) return;
+  renderedAlertCount = alerts.length;
+
+  list.innerHTML = alerts.map((a, i) => {
+    const confirmed = !a.resolved && a.still_secs > 0;
+    const cls       = a.resolved ? 'resolved' : (confirmed ? 'confirmed' : 'false');
+    const label     = confirmed ? '🚨 CAÍDA CONFIRMADA' : (a.resolved ? '✅ RESUELTA' : '✅ FALSA ALARMA');
+    const zones     = a.impact_zones.join(' · ') || a.impact_boards.join(' · ');
+    return `
+      <div class="alert-row ${cls}">
+        <div>
+          <div class="alert-time">${a.timestamp}</div>
+          <div class="alert-time" style="margin-top:2px">${a.still_secs.toFixed(0)} s inmóvil</div>
+        </div>
+        <div class="alert-info">
+          <strong>${label}</strong>
+          <div class="alert-zones">📡 ${zones}</div>
+        </div>
+        ${!a.resolved ? `<button class="btn-resolve" onclick="resolve(${alerts.length - 1 - i})">Resolver</button>` : '<span style="font-size:10px;color:var(--muted)">—</span>'}
+      </div>
+    `;
+  }).join('');
+}
+
+// ── Alert modal ──────────────────────────────────────────────────────────────
+let lastAlertTs = null;
+
+function checkAlertModal(alerts, state) {
+  if (state !== '🚨 ALERTA_CAIDA') return;
+  const last = alerts[0];
+  if (!last || last.resolved) return;
+  if (last.timestamp === lastAlertTs) return;
+
+  lastAlertTs = last.timestamp;
+  document.getElementById('modal-time').textContent = `Hora: ${last.timestamp}`;
+  document.getElementById('modal-still').textContent =
+    `Inmovilidad confirmada: ${last.still_secs.toFixed(0)} segundos`;
+  document.getElementById('modal-zones').textContent =
+    '📡 ' + (last.impact_zones.join('\n📡 ') || last.impact_boards.join('\n'));
+  document.getElementById('alert-overlay').classList.add('visible');
+}
+
+function dismissAlert() {
+  document.getElementById('alert-overlay').classList.remove('visible');
+}
+
+async function resolve(idx) {
+  await fetch(`/api/resolve/${idx}`, { method: 'POST' });
+}
+
+// ── SSE — actualización en tiempo real ──────────────────────────────────────
+let boardsCache = [];
+
+function applySnapshot(data) {
+  const { fall_state, boards, alerts, thresholds: thr } = data;
+  thresholds = thr;
+
+  updateBadge(fall_state);
+
+  if (JSON.stringify(boards.map(b => b.ip)) !== JSON.stringify(boardsCache.map(b => b.ip))) {
+    boardsCache = boards;
+    renderLegend(boards);
+  } else {
+    boardsCache = boards;
+  }
+
+  renderBoards(boards);
+  renderZoneMap(boards);
+  updateChart(boards);
+  renderAlerts(alerts);
+  checkAlertModal(alerts, fall_state);
+}
+
+const evtSource = new EventSource('/api/stream');
+evtSource.onmessage = e => {
+  try { applySnapshot(JSON.parse(e.data)); }
+  catch(err) { console.error('SSE parse error', err); }
+};
+evtSource.onerror = () => {
+  document.getElementById('state-badge').textContent = 'SIN CONEXIÓN';
+};
+</script>
+</body>
+</html>
