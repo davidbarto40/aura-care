@@ -23,7 +23,7 @@ Sistema comercial de teleasistencia para ancianos que detecta **presencia y caí
 ## Instalación
 
 ```bash
-git clone https://github.com/tu-usuario/aura-care.git
+git clone https://github.com/davidbarto40/aura-care.git
 cd aura-care
 pip install -r requirements.txt
 ```
